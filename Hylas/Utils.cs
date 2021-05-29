@@ -1,8 +1,9 @@
-﻿using System;
+﻿using MelonLoader;
+using System;
+using System.Collections.Generic;
 using System.IO;
-using MelonLoader;
+using System.Text.RegularExpressions;
 using UnhollowerBaseLib;
-using UnityEngine;
 using Object = UnityEngine.Object;
 
 namespace Hylas
@@ -65,6 +66,35 @@ namespace Hylas
             }
 
             return path;
+        }
+
+        public static List<Regex> LoadPrefetchedIgnore()
+        {
+            var file = Path.Combine(GetHylasHome(), ".prefetch.ignore");
+            if (!File.Exists(file))
+            {
+                File.WriteAllText(file, "// 不预加载的列表\r\n// 正则表达式，如 .* 代表忽略所有\r\n// 仅支持 // 单行注释\r\n^Battle/Human/.*$\r\n^Effect/UI/.*$\r\n^Texture/.*$");
+            }
+            List<Regex> prefetchedIgnore = new List<Regex>();
+            MelonLogger.Msg($"Prefetch Blacklist:");
+            try
+            {
+                IEnumerable<string> lines = File.ReadLines(file);
+                foreach (var line in lines)
+                {
+                    if (line.StartsWith("//")|| line.Trim().Length == 0)
+                    {
+                        continue;
+                    }
+                    MelonLogger.Msg($"{line}");
+                    prefetchedIgnore.Add(new Regex(line));
+                }
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Warning($"{e}");
+            }
+            return prefetchedIgnore;
         }
     }
 }

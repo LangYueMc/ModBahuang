@@ -1,14 +1,18 @@
 ﻿using MelonLoader;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 namespace Hylas
 {
     public class Hylas : MelonMod
     {
+        private bool prefetched = false;
+
         public override void OnApplicationStart()
         {
             ResourcesLoadPatch.Patch(Harmony);
@@ -17,12 +21,14 @@ namespace Hylas
         public override void OnSceneWasInitialized(int buildIndex, string sceneName)
         {
             if (buildIndex != 0) return;
+            if (prefetched) return;
             var sw = new Stopwatch();
             MelonLogger.Msg("Prefetch start...");
             sw.Start();
             GoCache.Prefetch();
             sw.Stop();
             MelonLogger.Msg($"Prefetch end, total: {sw.Elapsed}");
+            prefetched = true;
         }
     }
 
@@ -47,17 +53,14 @@ namespace Hylas
         {
             var (param, image) = path.LoadSprite();
 
-            // LoadImage will replace with with incoming image size.
-            var tex = new Texture2D(100, 100, TextureFormat.ARGB32, false);
+            Texture2D texture = new Texture2D(1, 1, TextureFormat.ARGB32, false);
 
-            if (!ImageConversion.LoadImage(tex, image))
+            if (!ImageConversion.LoadImage(texture, image))
             {
                 throw new InvalidOperationException();
             }
 
-            var newSprite = Sprite.Create(tex, param.rect, param.pivot, param.pixelsPerUnit, param.extrude, param.meshType, param.border, param.generateFallbackPhysicsShape);
-
-            renderer.sprite = newSprite;
+            renderer.sprite = Sprite.Create(texture, param.rect, param.pivot, param.pixelsPerUnit, param.extrude, param.meshType, param.border, param.generateFallbackPhysicsShape);
         }
 
         public static (SpriteParam, byte[]) LoadSprite(this string path)

@@ -24,12 +24,23 @@ namespace Hylas
             private readonly Worker worker;
             private readonly GameObject root;
 
-            public Cached(Worker worker, GameObject root)
+            public Cached(Worker worker, GameObject root, bool prefetch)
             {
                 this.worker = worker;
                 this.root = root;
+                MelonDebug.Msg($"Prefetch: {worker.AbsolutelyPhysicalPath}: {prefetch}");
+                if (prefetch)
+                {
+                    Update();
+                }
+                else
+                {
+                    expired = TRUE;
+                }
+            }
 
-                Update();
+            public Cached(Worker worker, GameObject root) : this(worker, root, true)
+            {
             }
 
             public Object Get()
@@ -39,7 +50,8 @@ namespace Hylas
                     cacheLock.EnterWriteLock();
                     try
                     {
-                        MelonLogger.Msg("Update expired");
+                        if (go != null)
+                            MelonLogger.Msg("Update expired");
                         Update();
                         return go;
                     }
@@ -135,6 +147,10 @@ namespace Hylas
 
         private static void Handler(object sender, FileSystemEventArgs e)
         {
+            if (e.Name.EndsWith(".prefetch.ignore") || e.Name.EndsWith(".prefetch"))
+            {
+                return;
+            }
 
             var path = Utils.GetResourcePath(e.FullPath);
 
@@ -182,11 +198,32 @@ namespace Hylas
 
         public static void Prefetch()
         {
+            var prefetchedIgnore = Utils.LoadPrefetchedIgnore();
             foreach (var file in Directory.EnumerateFiles(Utils.GetHylasHome(), "sprite.json", SearchOption.AllDirectories))
             {
                 var path = Utils.GetResourcePath(file);
 
                 MelonDebug.Msg($"Prefetch: {path}");
+                var prefetch = true;
+                foreach (var regex in prefetchedIgnore)
+                {
+                    if (regex.IsMatch(path))
+                    {
+                        prefetch = false;
+                        break;
+                    }
+                }
+                if (prefetch)
+                {
+                    try
+                    {
+                        var pf = file.Replace("sprite.json", ".prefetch");
+                        prefetch = !File.Exists(pf) || !File.ReadAllText(pf).ToLower().StartsWith("false");
+                    }
+                    catch (Exception)
+                    {
+                    }
+                }
                 var worker = Worker.Pick(path);
                 if (worker == null)
                 {
@@ -195,7 +232,7 @@ namespace Hylas
                 }
                 try
                 {
-                    _cache.Add(path, new Cached(worker, _root));
+                    _cache.Add(path, new Cached(worker, _root, prefetch));
                 }
                 catch (Exception e)
                 {

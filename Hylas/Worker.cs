@@ -1,8 +1,9 @@
-﻿using System;
+﻿using MelonLoader;
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
-using MelonLoader;
 using UnhollowerRuntimeLib;
 using UnityEngine;
 
@@ -27,7 +28,7 @@ namespace Hylas
 
         protected virtual Func<string, string> MapPath => s => s;
 
-        protected string AbsolutelyPhysicalPath => Path.GetFullPath(Path.Combine(Utils.GetHylasHome(), MapPath(resPath)));
+        public string AbsolutelyPhysicalPath => Path.GetFullPath(Path.Combine(Utils.GetHylasHome(), MapPath(resPath)));
 
         public virtual Il2CppSystem.Type Type
         {
@@ -121,14 +122,10 @@ namespace Hylas
             sprite.pivot.Set(param.pivot.x, param.pivot.y);
             sprite.border.Set(param.border.x, param.border.y, param.border.z, param.border.w);
             // 袖子 暂时先去掉
-            var nodes = template.GetComponentsInChildren<Transform>();
+            var nodes = template.GetComponentsInChildren<Transform>().Where(a => a.name == "youbi_1");
             foreach (Transform child in nodes)
             {
-                if (child.name == "youbi_1")
-                {
-                    child.gameObject.active = false;
-                    break;
-                }
+                child.gameObject.active = false;
             }
 
             return template.Cast<T>();
